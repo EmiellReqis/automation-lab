@@ -6,7 +6,6 @@ import sys
 BASE_URL = "http://127.0.0.1:8000"
 
 def start_server():
-    # use python from current venv to run uvicorn
     return subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
         stdout=subprocess.PIPE,
