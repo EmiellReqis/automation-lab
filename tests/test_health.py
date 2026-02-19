@@ -3,11 +3,11 @@ import time
 import pytest
 import requests
 import sys
-from tests.config import BASE_URL
+from tests.config import BASE_URL, PORT
 
 def start_server():
     return subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
