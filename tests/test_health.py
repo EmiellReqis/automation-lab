@@ -1,9 +1,9 @@
 import subprocess
 import time
+import pytest
 import requests
 import sys
-
-BASE_URL = "http://127.0.0.1:8000"
+from tests.config import BASE_URL
 
 def start_server():
     return subprocess.Popen(
@@ -24,6 +24,7 @@ def wait_for_server(timeout_s=5):
             time.sleep(0.2)
     return False
 
+@pytest.mark.smoke
 def test_health_endpoint():
     proc = start_server()
     try:
@@ -35,6 +36,7 @@ def test_health_endpoint():
         proc.terminate()
         proc.wait(timeout=5)
 
+@pytest.mark.integration
 def test_sum_endpoint():
     proc = start_server()
     try:
