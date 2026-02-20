@@ -1,49 +1,19 @@
-import subprocess
-import time
 import pytest
 import requests
-import sys
-from tests.config import BASE_URL, PORT
-
-def start_server():
-    return subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-def wait_for_server(timeout_s=5):
-    start = time.time()
-    while time.time() - start < timeout_s:
-        try:
-            r = requests.get(f"{BASE_URL}/health", timeout=0.5)
-            if r.status_code == 200:
-                return True
-        except Exception:
-            time.sleep(0.2)
-    return False
+from tests.config import BASE_URL
 
 @pytest.mark.smoke
-def test_health_endpoint():
-    proc = start_server()
-    try:
-        assert wait_for_server(), "Server did not start in time"
-        r = requests.get(f"{BASE_URL}/health")
-        assert r.status_code == 200
-        assert r.json() == {"status": "ok"}
-    finally:
-        proc.terminate()
-        proc.wait(timeout=5)
+def test_health_endpoint(sut_server):
+    r = requests.get(f"{BASE_URL}/health", timeout=1.0)
+
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
 
 @pytest.mark.integration
-def test_sum_endpoint():
-    proc = start_server()
-    try:
-        assert wait_for_server(), "Server did not start in time"
-        r = requests.get(f"{BASE_URL}/sum", params={"a": 2, "b": 3})
-        assert r.status_code == 200
-        assert r.json()["sum"] == 5
-    finally:
-        proc.terminate()
-        proc.wait(timeout=5)
+def test_sum_endpoint(sut_server):
+    r = requests.get(f"{BASE_URL}/sum",
+                     params={"a": 2, "b": 3},
+                     timeout=1.0)
+
+    assert r.status_code == 200
+    assert r.json()["sum"] == 5
