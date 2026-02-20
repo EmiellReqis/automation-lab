@@ -4,6 +4,7 @@ import time
 import sys
 import requests
 from tests.config import BASE_URL, PORT
+from tests.support.api_client import APIClient
 
 
 @pytest.fixture(scope="function")
@@ -52,3 +53,8 @@ def sut_server():
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
+
+
+@pytest.fixture
+def api_client():
+    return APIClient(base_url=BASE_URL, timeout=2.0)

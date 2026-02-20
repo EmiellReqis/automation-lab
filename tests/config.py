@@ -13,5 +13,6 @@ def _parse_port(value: str | None, default: int = 8000) -> int:
 
     return port
 
-PORT = _parse_port(os.getenv("PORT", 8000))
+PORT = _parse_port(os.getenv("PORT", "8000"))
 BASE_URL = os.getenv("BASE_URL", f"http://127.0.0.1:{PORT}")
+TIMEOUT_S = 2.0
