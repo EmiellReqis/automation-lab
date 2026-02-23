@@ -7,8 +7,14 @@ from tests.config import BASE_URL, PORT, SERVER_START_TIMEOUT_S, HTTP_TIMEOUT_S,
 from tests.support.api_client import APIClient
 
 
+@pytest.fixture
+def api_client():
+    return APIClient(base_url=BASE_URL, timeout=HTTP_TIMEOUT_S)
+
+
 @pytest.fixture(scope="function")
 def sut_server():
+    client = APIClient(base_url=BASE_URL, timeout=HTTP_TIMEOUT_S)
     process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
         stdout=subprocess.PIPE,
@@ -23,7 +29,7 @@ def sut_server():
 
     while time.time() < deadline:
         try:
-            r = requests.get(f"{BASE_URL}/health", timeout=min(HTTP_TIMEOUT_S, 0.5))
+            r = client.get("/health", timeout=min(HTTP_TIMEOUT_S, 0.5))
             if r.status_code == 200:
                 server_ready = True
                 break
@@ -52,8 +58,3 @@ def sut_server():
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
-
-
-@pytest.fixture
-def api_client():
-    return APIClient(base_url=BASE_URL, timeout=HTTP_TIMEOUT_S)
