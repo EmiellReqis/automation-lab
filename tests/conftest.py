@@ -1,9 +1,17 @@
-import pytest
 import subprocess
-import time
 import sys
+import time
+
+import pytest
 import requests
-from tests.config import BASE_URL, PORT, SERVER_START_TIMEOUT_S, HTTP_TIMEOUT_S, PROCESS_STOP_TIMEOUT_S
+
+from tests.config import (
+    BASE_URL,
+    HTTP_TIMEOUT_S,
+    PORT,
+    PROCESS_STOP_TIMEOUT_S,
+    SERVER_START_TIMEOUT_S,
+)
 from tests.support.api_client import APIClient
 
 
@@ -16,7 +24,8 @@ def api_client():
 def sut_server():
     client = APIClient(base_url=BASE_URL, timeout=HTTP_TIMEOUT_S)
     process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
+        [sys.executable,
+         "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

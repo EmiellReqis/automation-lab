@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.smoke
 def test_health_endpoint(sut_server, api_client):
     r = api_client.get("/health")

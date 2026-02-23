@@ -1,5 +1,6 @@
 import os
 
+
 def _parse_port(value: str | None, default: int = 8000) -> int:
     if not value:
         return default
