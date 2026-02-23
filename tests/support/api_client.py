@@ -8,6 +8,7 @@ class APIClient:
 
 
     def _url(self, path: str) -> str:
+        path = path.strip()
         if path.lower().startswith(("http://", "https://")):
             return path
         return f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
