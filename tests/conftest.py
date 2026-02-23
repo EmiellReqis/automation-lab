@@ -22,48 +22,48 @@ def api_client():
 
 @pytest.fixture(scope="function")
 def sut_server():
-    client = APIClient(base_url=BASE_URL, timeout=HTTP_TIMEOUT_S)
+    cmd = [sys.executable,
+           "-m",
+           "uvicorn",
+           "app.main:app",
+           "--host",
+           "127.0.0.1",
+           "--port",
+           str(PORT)]
     process = subprocess.Popen(
-        [sys.executable,
-         "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     # ---- wait for server readiness ----
     poll_interval_s = 0.2
     deadline = time.time() + SERVER_START_TIMEOUT_S
-    server_ready = False
+    last_err: Exception | None = None
 
     while time.time() < deadline:
         try:
-            r = client.get("/health", timeout=min(HTTP_TIMEOUT_S, 0.5))
-            if r.status_code == 200:
-                server_ready = True
+            resp = requests.get(f"{BASE_URL}/health", timeout=HTTP_TIMEOUT_S)
+            if resp.status_code == 200:
                 break
-        except requests.RequestException:
-            # expected while server is starting
-            pass
+        except requests.exceptions.RequestException as err:
+            last_err = err
         time.sleep(poll_interval_s)
-
-    if not server_ready:
-        # cleanup before failing
+    else:
         process.terminate()
         try:
             process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             process.kill()
-            process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
+        raise RuntimeError(
+            f"SUT did not become ready within {SERVER_START_TIMEOUT_S}s. "
+            f"Last error: {last_err!r}"
+        )
 
-        pytest.fail("Server did not start in time")
+    yield
 
+    process.terminate()
     try:
-        yield process
-    finally:
-        process.terminate()
-        try:
-            process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
+        process.wait(timeout=PROCESS_STOP_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        process.kill()
