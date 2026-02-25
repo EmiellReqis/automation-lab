@@ -6,7 +6,6 @@ class APIClient:
         self.base_url = base_url
         self.timeout = timeout
 
-
     def _url(self, path: str) -> str:
         path = path.strip()
         if path.lower().startswith(("http://", "https://")):

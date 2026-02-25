@@ -9,7 +9,7 @@ def _parse_port(value: str | None, default: int = 8000) -> int:
     except ValueError:
         return default
 
-    if not (1<=port<=65535):
+    if not (1 <= port <= 65535):
         return default
 
     return port
