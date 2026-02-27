@@ -27,15 +27,23 @@ python -m venv .venv
 ### Install dependencies
 ```
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 ### Run the FastAPI app (SUT)
 ```
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 ### Run tests
+Run from repo root
+
 In a new terminal (with the same venv activated):
 ```
 pytest -q
+pytest -m api -q
+pytest -m smoke -q
+pytest -m integration -q
+pytest -m "api and smoke" -q
+pytest -m "api and integration" -q
 ```
 If tests require a running app on a non-default address/port, set BASE_URL:
 ```
@@ -48,8 +56,16 @@ automation-lab/
 ├─ app/                      # FastAPI sample service (system under test)
 │  └─ main.py                # FastAPI app entrypoint (FastAPI() instance)
 ├─ tests/                    # pytest test suite
-│  └─ test_health.py         # example API test(s)
+│  └─ api
+│     └─   test_health.py         # example API test(s)
+│  └─ ui
+│     └─   TODO
+│  └─ unit
+│     └─   TODO
 ├─ requirements.txt          # Python dependencies
+├─ requirements-dev.txt      # Dev dependencies
+├─ pytest.ini                # pytest settings
+├─ pyproject.toml            # ruff settings
 └─ README.md                 # project documentation
 ```
 ## Testing approach

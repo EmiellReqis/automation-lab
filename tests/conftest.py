@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import requests
 
+from tests.api_client import APIClient
 from tests.config import (
     BASE_URL,
     HTTP_TIMEOUT_S,
@@ -14,7 +15,6 @@ from tests.config import (
     PROCESS_STOP_TIMEOUT_S,
     SERVER_START_TIMEOUT_S,
 )
-from tests.support.api_client import APIClient
 
 
 @pytest.fixture

@@ -2,6 +2,7 @@ import pytest
 
 
 @pytest.mark.smoke
+@pytest.mark.api
 def test_health_endpoint(sut_server, api_client):
     r = api_client.get("/health")
     assert r.status_code == 200
@@ -9,6 +10,7 @@ def test_health_endpoint(sut_server, api_client):
 
 
 @pytest.mark.integration
+@pytest.mark.api
 def test_sum_endpoint(sut_server, api_client):
     r = api_client.get("/sum", params={"a": 2, "b": 3})
     assert r.status_code == 200
