@@ -40,6 +40,8 @@ In a new terminal (with the same venv activated):
 ```
 pytest -q
 pytest -m api -q
+pytest -m ui -q
+pytest -m unit -q
 pytest -m smoke -q
 pytest -m integration -q
 pytest -m "api and smoke" -q
@@ -53,20 +55,20 @@ BASE_URL=http://127.0.0.1:8000 pytest -q
 ## Project structure
 ```text
 automation-lab/
-├─ app/                      # FastAPI sample service (system under test)
-│  └─ main.py                # FastAPI app entrypoint (FastAPI() instance)
-├─ tests/                    # pytest test suite
+├─ app/                             # FastAPI sample service (system under test)
+│  └─ main.py                       # FastAPI app entrypoint (FastAPI() instance)
+├─ tests/                           # pytest test suite
 │  └─ api
-│     └─   test_health.py         # example API test(s)
+│     └─   test_health.py           # example API test(s)
 │  └─ ui
-│     └─   TODO
+│     └─   test_ui_placeholder.py   # placeholder for ui test(s)
 │  └─ unit
-│     └─   TODO
-├─ requirements.txt          # Python dependencies
-├─ requirements-dev.txt      # Dev dependencies
-├─ pytest.ini                # pytest settings
-├─ pyproject.toml            # ruff settings
-└─ README.md                 # project documentation
+│     └─   test_unit_placeholder.py # placeholder for unit test(s)
+├─ requirements.txt                 # Python dependencies
+├─ requirements-dev.txt             # Dev dependencies
+├─ pytest.ini                       # pytest settings
+├─ pyproject.toml                   # ruff settings
+└─ README.md                        # project documentation
 ```
 ## Testing approach
 This repository is a learning-focused mini framework for API test automation.
