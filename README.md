@@ -29,6 +29,11 @@ python -m venv .venv
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
+### Optional (UI only — Playwright):
+```
+pip install -r requirements-ui.txt
+```
+Note: Playwright also requires installing browser binaries (will be added later).
 ### Run the FastAPI app (SUT)
 ```
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -66,6 +71,7 @@ automation-lab/
 │     └─   test_unit_placeholder.py # placeholder for unit test(s)
 ├─ requirements.txt                 # Python dependencies
 ├─ requirements-dev.txt             # Dev dependencies
+├─ requirements-ui.txt              # UI dependencies
 ├─ pytest.ini                       # pytest settings
 ├─ pyproject.toml                   # ruff settings
 └─ README.md                        # project documentation
