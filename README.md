@@ -52,6 +52,7 @@ pytest -m integration -q
 pytest -m "api and smoke" -q
 pytest -m "api and integration" -q
 ```
+Note: UI tests are skipped unless Playwright dependencies are installed.
 If tests require a running app on a non-default address/port, set BASE_URL:
 ```
 BASE_URL=http://127.0.0.1:8000 pytest -q
