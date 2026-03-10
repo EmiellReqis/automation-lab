@@ -33,7 +33,10 @@ pip install -r requirements-dev.txt
 ```
 pip install -r requirements-ui.txt
 ```
-Note: Playwright also requires installing browser binaries (will be added later).
+Note: Playwright also requires installing browser binaries.
+```
+python -m playwright install
+```
 ### Run the FastAPI app (SUT)
 ```
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
