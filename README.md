@@ -39,6 +39,25 @@ python -m playwright install chromium
 
 and/or: python -m playwright install-deps
 ```
+### Run UI tests
+```
+pytest -m ui -q
+```
+### Artifacts (on failure / xfail)
+UI test artifacts are saved under:
+
+- pytest-logs/ui/
+
+What you’ll find there:
+
+- ui-*.png — screenshot captured on test failure / xfail
+- trace-*.zip — Playwright trace recorded on test failure / xfail
+
+### Open Playwright trace
+```
+python -m playwright show-trace .pytest-logs/ui/trace-<...>.zip
+```
+
 ### Run the FastAPI app (SUT)
 ```
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -50,7 +69,6 @@ In a new terminal (with the same venv activated):
 ```
 pytest -q
 pytest -m api -q
-pytest -m ui -q
 pytest -m unit -q
 pytest -m smoke -q
 pytest -m integration -q
@@ -66,15 +84,21 @@ BASE_URL=http://127.0.0.1:8000 pytest -q
 ## Project structure
 ```text
 automation-lab/
+├─ .pytest-logs/                    # Test run artifacts (logs/screenshots/traces)
+│  |─ sut                           # SUT (FastAPI) process logs per run
+│     └─   sut-*.log                # Uvicorn stdout/stderr captured to file
+│  └─ ui                            # UI artifacts (Playwright)
+│     |─   trace.zip                # Playwright trace recorded on fail/xfail
+│     └─   ui-*.png                 # Screenshot captured on fail/xfail
 ├─ app/                             # FastAPI sample service (system under test)
 │  └─ main.py                       # FastAPI app entrypoint (FastAPI() instance)
 ├─ tests/                           # pytest test suite
-│  └─ api
+│  └─ api                           # API tests (requests-based)
 │     └─   test_health.py           # example API test(s)
-│  └─ ui
+│  └─ ui                            # UI tests (Playwright)
 |     |─   conftest.py              # Playwright UI fixtures
 │     └─   test_ui_smoke.py         # ui test(s)
-│  └─ unit
+│  └─ unit                          # Unit tests (fast feedback)
 │     └─   test_unit_placeholder.py # placeholder for unit test(s)
 |  |─ api_client.py                 # Wrapper for API calls (requests) used in tests
 |  |─ config.py                     # Test config (BASE_URL, timeouts, env parsing)
