@@ -64,8 +64,11 @@ def page(browser, request):
     logs_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     log_path = logs_dir / f"ui-{ts}.png"
+    trace_path = logs_dir / f"trace-{ts}.zip"
 
-    page = browser.new_page()
+    context = browser.new_context()
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page = context.new_page()
     try:
         yield page
     finally:
@@ -74,4 +77,7 @@ def page(browser, request):
         xfail = bool(rep and getattr(rep, "wasxfail", False))
         if failed or xfail:
             page.screenshot(path=log_path)
-        page.close()
+            context.tracing.stop(path=trace_path)
+        else:
+            context.tracing.stop()
+        context.close()
