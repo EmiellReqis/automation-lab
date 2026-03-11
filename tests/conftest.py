@@ -24,7 +24,7 @@ def api_client():
 
 @pytest.fixture(scope="session")
 def sut_server():
-    logs_dir = Path(".pytest-logs")
+    logs_dir = Path(".pytest-logs/sut")
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")

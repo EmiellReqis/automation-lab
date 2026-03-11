@@ -1,8 +1,21 @@
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from tests.config import PW_HEADLESS
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when == "call":
+        item.rep_call = rep
+    elif rep.when == "setup":
+        item.rep_setup = rep
+    elif rep.when == "teardown":
+        item.rep_teardown = rep
 
 
 @pytest.fixture(scope="session")
@@ -46,9 +59,19 @@ def browser(pw):
 
 
 @pytest.fixture(scope="function")
-def page(browser):
+def page(browser, request):
+    logs_dir = Path(".pytest-logs/ui")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_path = logs_dir / f"ui-{ts}.png"
+
     page = browser.new_page()
     try:
         yield page
     finally:
+        rep = getattr(request.node, "rep_call", None)
+        failed = bool(rep and rep.failed)
+        xfail = bool(rep and getattr(rep, "wasxfail", False))
+        if failed or xfail:
+            page.screenshot(path=log_path)
         page.close()
