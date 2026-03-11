@@ -74,7 +74,7 @@ def sut_server():
                 f"Last error: {last_err!r}"
             )
 
-        yield
+        yield BASE_URL
 
     finally:
         if process.poll() is None:

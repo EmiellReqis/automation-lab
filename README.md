@@ -35,7 +35,9 @@ pip install -r requirements-ui.txt
 ```
 Note: Playwright also requires installing browser binaries.
 ```
-python -m playwright install
+python -m playwright install chromium
+
+and/or: python -m playwright install-deps
 ```
 ### Run the FastAPI app (SUT)
 ```
@@ -70,9 +72,13 @@ automation-lab/
 │  └─ api
 │     └─   test_health.py           # example API test(s)
 │  └─ ui
-│     └─   test_ui_placeholder.py   # placeholder for ui test(s)
+|     |─   conftest.py              # Playwright UI fixtures
+│     └─   test_ui_smoke.py         # ui test(s)
 │  └─ unit
 │     └─   test_unit_placeholder.py # placeholder for unit test(s)
+|  |─ api_client.py                 # Wrapper for API calls (requests) used in tests
+|  |─ config.py                     # Test config (BASE_URL, timeouts, env parsing)
+|  |─ conftest.py                   # Pytest fixtures (SUT lifecycle, shared setup)
 ├─ requirements.txt                 # Python dependencies
 ├─ requirements-dev.txt             # Dev dependencies
 ├─ requirements-ui.txt              # UI dependencies
