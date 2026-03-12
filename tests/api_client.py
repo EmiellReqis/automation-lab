@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 
@@ -12,6 +14,14 @@ class APIClient:
             return path
         return f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
 
-    def get(self, path: str, **kwargs):
+    def get(self, path: str, retries: int = 2, backoff_s: float = 0.2, **kwargs):
+        retries = max(0, retries)
         kwargs.setdefault("timeout", self.timeout)
-        return requests.get(self._url(path), **kwargs)
+
+        for attempt in range(retries + 1):
+            try:
+                return requests.get(self._url(path), **kwargs)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == retries:
+                    raise
+                time.sleep(backoff_s)
