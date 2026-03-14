@@ -50,3 +50,65 @@ def test_api_client_get_raises_after_retries_exhausted(monkeypatch):
     assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
     assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
     assert "simulated timeout" in str(excinfo.value)
+
+
+@pytest.mark.unit
+def test_api_client_get_retries_on_503_then_returns_200(monkeypatch):
+    calls = []
+    statuses = []
+
+    def mock_get(url, **kwargs):
+        calls.append((url, kwargs))
+
+        status = 503 if len(calls) == 1 else 200
+        statuses.append(status)
+
+        class FakeResponse:
+            pass
+
+        resp = FakeResponse()
+        resp.status_code = status
+        return resp
+
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    res = client.get("/health", retries=1, backoff_s=0)
+
+    assert len(calls) == 2
+    assert calls[0][0] == "http://example/health"
+    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
+    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    assert res.status_code == 200
+    assert statuses == [503, 200]
+
+
+@pytest.mark.unit
+def test_api_client_get_returns_503_after_retries_exhausted(monkeypatch):
+    calls = []
+    statuses = []
+
+    def mock_get(url, **kwargs):
+        calls.append((url, kwargs))
+
+        status = 503
+        statuses.append(status)
+
+        class FakeResponse:
+            pass
+
+        resp = FakeResponse()
+        resp.status_code = status
+        return resp
+
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    res = client.get("/health", retries=1, backoff_s=0)
+
+    assert len(calls) == 2
+    assert calls[0][0] == "http://example/health"
+    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
+    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    assert res.status_code == 503
+    assert statuses == [503, 503]

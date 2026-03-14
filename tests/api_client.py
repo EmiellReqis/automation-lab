@@ -20,7 +20,13 @@ class APIClient:
 
         for attempt in range(retries + 1):
             try:
-                return requests.get(self._url(path), **kwargs)
+                resp = requests.get(self._url(path), **kwargs)
+                if resp.status_code in {502, 503, 504}:
+                    if attempt == retries:
+                        return resp
+                    time.sleep(backoff_s)
+                    continue
+                return resp
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 if attempt == retries:
                     raise
