@@ -2,6 +2,8 @@ import time
 
 import requests
 
+RETRYABLE_STATUSES = {502, 503, 504}
+
 
 class APIClient:
     def __init__(self, base_url: str, timeout: float = 2.0):
@@ -14,20 +16,33 @@ class APIClient:
             return path
         return f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
 
-    def get(self, path: str, retries: int = 2, backoff_s: float = 0.2, **kwargs):
+    def get(
+        self,
+        path: str,
+        retries: int = 2,
+        backoff_s: float = 0.2,
+        retry_on_status: bool = True,
+        **kwargs,
+    ):
         retries = max(0, retries)
+        backoff_s = max(0.0, backoff_s)
         kwargs.setdefault("timeout", self.timeout)
 
         for attempt in range(retries + 1):
             try:
                 resp = requests.get(self._url(path), **kwargs)
-                if resp.status_code in {502, 503, 504}:
+                if retry_on_status and resp.status_code in RETRYABLE_STATUSES:
                     if attempt == retries:
                         return resp
-                    time.sleep(backoff_s)
+                    if backoff_s:
+                        time.sleep(backoff_s)
                     continue
                 return resp
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 if attempt == retries:
                     raise
-                time.sleep(backoff_s)
+                if backoff_s:
+                    time.sleep(backoff_s)
+                continue
+
+        raise RuntimeError("APIClient.get: unreachable - loop exhausted without return/raise")
