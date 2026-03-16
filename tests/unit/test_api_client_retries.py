@@ -166,3 +166,47 @@ def test_no_sleep_when_backoff_s_is_zero(monkeypatch):
     assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
     assert res.status_code == 200
     assert sleep_calls == []
+
+
+@pytest.mark.unit
+def test_retry_on_exceptions_false_does_not_retry_and_raises_timeout(monkeypatch):
+    calls = []
+
+    def mock_get(url, **kwargs):
+        calls.append((url, kwargs))
+        raise requests.exceptions.Timeout("simulated timeout")
+
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    with pytest.raises(requests.exceptions.Timeout) as excinfo:
+        client.get("/health", retries=1, backoff_s=0, retry_on_exceptions=False)
+
+    assert len(calls) == 1
+    assert calls[0][0] == "http://example/health"
+    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
+    assert "simulated timeout" in str(excinfo.value)
+
+
+@pytest.mark.unit
+def test_retry_on_exceptions_true_retries_and_raises_timeout_after_budget(monkeypatch):
+    calls = []
+
+    def mock_get(url, **kwargs):
+        calls.append((url, kwargs))
+        raise requests.exceptions.Timeout("simulated timeout")
+
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    with pytest.raises(requests.exceptions.Timeout) as excinfo:
+        client.get("/health", retries=2, backoff_s=0, retry_on_exceptions=True)
+
+    assert len(calls) == 3
+    assert calls[0][0] == "http://example/health"
+    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
+    assert calls[1][0] == "http://example/health"
+    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    assert calls[2][0] == "http://example/health"
+    assert calls[2][1]["timeout"] == HTTP_TIMEOUT_S
+    assert "simulated timeout" in str(excinfo.value)

@@ -22,6 +22,7 @@ class APIClient:
         retries: int = 2,
         backoff_s: float = 0.2,
         retry_on_status: bool = True,
+        retry_on_exceptions: bool = True,
         **kwargs,
     ):
         retries = max(0, retries)
@@ -39,6 +40,8 @@ class APIClient:
                     continue
                 return resp
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if not retry_on_exceptions:
+                    raise
                 if attempt == retries:
                     raise
                 if backoff_s:
