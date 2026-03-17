@@ -1,212 +1,180 @@
 import sys
-import types
+from typing import Any
 
 import pytest
 import requests
 
 from tests.api_client import APIClient
 from tests.config import HTTP_TIMEOUT_S
+from tests.helpers.fake_session import FakeResponse, FakeSession
+
+
+def _assert_calls(
+    calls: list[tuple[str, dict[str, Any]]],
+    expected_url: str,
+    expected_timeout: float,
+    expected_count: int,
+) -> None:
+    assert len(calls) == expected_count
+    for url, kwargs in calls:
+        assert url == expected_url
+        assert "timeout" in kwargs
+        assert kwargs["timeout"] == expected_timeout
 
 
 @pytest.mark.unit
-def test_api_client_get_retries_on_timeout(monkeypatch):
-    calls = []
+def test_api_client_get_retries_on_timeout():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
+    fake = FakeSession([requests.exceptions.Timeout("simulated timeout"), FakeResponse(200)])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
-        if len(calls) == 1:
-            raise requests.exceptions.Timeout("simulated timeout")
-
-        class FakeResponse:
-            status_code = 200
-
-        return FakeResponse()
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
     res = client.get("/health", retries=1, backoff_s=0)
 
-    assert len(calls) == 2
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=2,
+    )
     assert res.status_code == 200
 
 
 @pytest.mark.unit
-def test_api_client_get_raises_after_retries_exhausted(monkeypatch):
-    calls = []
+def test_api_client_get_raises_after_retries_exhausted():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
-        raise requests.exceptions.Timeout("simulated timeout")
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
+    fake = FakeSession(
+        [
+            requests.exceptions.Timeout("simulated timeout"),
+            requests.exceptions.Timeout("simulated timeout"),
+        ]
+    )
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
     with pytest.raises(requests.exceptions.Timeout) as excinfo:
         client.get("/health", retries=1, backoff_s=0)
 
-    assert len(calls) == 2
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=2,
+    )
     assert "simulated timeout" in str(excinfo.value)
 
 
 @pytest.mark.unit
-def test_api_client_get_retries_on_503_then_returns_200(monkeypatch):
-    calls = []
-    statuses = []
+def test_api_client_get_retries_on_503_then_returns_200():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
-
-        status = 503 if len(calls) == 1 else 200
-        statuses.append(status)
-
-        class FakeResponse:
-            pass
-
-        resp = FakeResponse()
-        resp.status_code = status
-        return resp
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
+    fake = FakeSession([FakeResponse(503), FakeResponse(200)])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
     res = client.get("/health", retries=1, backoff_s=0)
 
-    assert len(calls) == 2
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=2,
+    )
     assert res.status_code == 200
-    assert statuses == [503, 200]
 
 
 @pytest.mark.unit
-def test_api_client_get_returns_503_after_retries_exhausted(monkeypatch):
-    calls = []
-    statuses = []
+def test_api_client_get_returns_503_after_retries_exhausted():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
-
-        status = 503
-        statuses.append(status)
-
-        class FakeResponse:
-            pass
-
-        resp = FakeResponse()
-        resp.status_code = status
-        return resp
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
+    fake = FakeSession([FakeResponse(503), FakeResponse(503)])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
     res = client.get("/health", retries=1, backoff_s=0)
 
-    assert len(calls) == 2
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=2,
+    )
     assert res.status_code == 503
-    assert statuses == [503, 503]
 
 
 @pytest.mark.unit
-def test_retry_on_status_false(monkeypatch):
-    calls = []
+def test_retry_on_status_false():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
+    fake = FakeSession([FakeResponse(503)])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
-        resp = types.SimpleNamespace(status_code=503)
-        return resp
+    res = client.get("/health", retries=2, backoff_s=0, retry_on_status=False)
 
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
-
-    res = client.get("/health", retries=1, backoff_s=0, retry_on_status=False)
-
-    assert len(calls) == 1
-    assert calls[0][0] == "http://example/health"
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=1,
+    )
     assert res.status_code == 503
 
 
 @pytest.mark.unit
 def test_no_sleep_when_backoff_s_is_zero(monkeypatch):
-    calls = []
     sleep_calls = []
 
     def fake_sleep(seconds):
         sleep_calls.append(seconds)
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
+    fake = FakeSession([FakeResponse(503), FakeResponse(200)])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
-        status = 503 if len(calls) == 1 else 200
-
-        resp = types.SimpleNamespace(status_code=status)
-        return resp
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
     api_module = sys.modules[APIClient.__module__]
     monkeypatch.setattr(api_module.time, "sleep", fake_sleep)
 
     res = client.get("/health", retries=1, backoff_s=0)
 
-    assert len(calls) == 2
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=2,
+    )
     assert res.status_code == 200
     assert sleep_calls == []
 
 
 @pytest.mark.unit
-def test_retry_on_exceptions_false_does_not_retry_and_raises_timeout(monkeypatch):
-    calls = []
+def test_retry_on_exceptions_false_does_not_retry_and_raises_timeout():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
-        raise requests.exceptions.Timeout("simulated timeout")
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
+    fake = FakeSession([requests.exceptions.Timeout("simulated timeout")])
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
     with pytest.raises(requests.exceptions.Timeout) as excinfo:
         client.get("/health", retries=1, backoff_s=0, retry_on_exceptions=False)
 
-    assert len(calls) == 1
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=1,
+    )
     assert "simulated timeout" in str(excinfo.value)
 
 
 @pytest.mark.unit
-def test_retry_on_exceptions_true_retries_and_raises_timeout_after_budget(monkeypatch):
-    calls = []
+def test_retry_on_exceptions_true_retries_and_raises_timeout_after_budget():
 
-    def mock_get(url, **kwargs):
-        calls.append((url, kwargs))
-        raise requests.exceptions.Timeout("simulated timeout")
-
-    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S)
-    monkeypatch.setattr(requests, "get", mock_get)
+    fake = FakeSession(
+        [
+            requests.exceptions.Timeout("simulated timeout"),
+            requests.exceptions.Timeout("simulated timeout"),
+            requests.exceptions.Timeout("simulated timeout"),
+        ]
+    )
+    client = APIClient(base_url="http://example", timeout=HTTP_TIMEOUT_S, session=fake)
 
     with pytest.raises(requests.exceptions.Timeout) as excinfo:
         client.get("/health", retries=2, backoff_s=0, retry_on_exceptions=True)
 
-    assert len(calls) == 3
-    assert calls[0][0] == "http://example/health"
-    assert calls[0][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[1][0] == "http://example/health"
-    assert calls[1][1]["timeout"] == HTTP_TIMEOUT_S
-    assert calls[2][0] == "http://example/health"
-    assert calls[2][1]["timeout"] == HTTP_TIMEOUT_S
+    _assert_calls(
+        calls=fake.calls,
+        expected_url="http://example/health",
+        expected_timeout=HTTP_TIMEOUT_S,
+        expected_count=3,
+    )
     assert "simulated timeout" in str(excinfo.value)

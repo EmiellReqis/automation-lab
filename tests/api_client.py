@@ -6,9 +6,12 @@ RETRYABLE_STATUSES = {502, 503, 504}
 
 
 class APIClient:
-    def __init__(self, base_url: str, timeout: float = 2.0):
+    def __init__(
+        self, base_url: str, timeout: float = 2.0, session: requests.Session | None = None
+    ):
         self.base_url = base_url
         self.timeout = timeout
+        self.session = requests.Session() if session is None else session
 
     def _url(self, path: str) -> str:
         path = path.strip()
@@ -31,7 +34,7 @@ class APIClient:
 
         for attempt in range(retries + 1):
             try:
-                resp = requests.get(self._url(path), **kwargs)
+                resp = self.session.get(self._url(path), **kwargs)
                 if retry_on_status and resp.status_code in RETRYABLE_STATUSES:
                     if attempt == retries:
                         return resp
