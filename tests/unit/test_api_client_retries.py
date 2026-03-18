@@ -6,6 +6,8 @@ import requests
 from tests.config import HTTP_TIMEOUT_S
 from tests.helpers.fake_session import FakeResponse
 
+OMIT = object()
+
 
 def _assert_calls(
     calls: list[tuple[str, dict[str, Any]]],
@@ -58,54 +60,53 @@ def test_api_client_get_raises_after_retries_exhausted(make_client, health_url):
 
 
 @pytest.mark.unit
-def test_api_client_get_retries_on_503_then_returns_200(make_client, health_url):
-
-    outcomes = [FakeResponse(503), FakeResponse(200)]
+@pytest.mark.parametrize(
+    "outcomes, retries, retry_on_status_arg, expected_count, expected_status",
+    [
+        pytest.param(
+            [FakeResponse(503), FakeResponse(200)],
+            1,
+            OMIT,
+            2,
+            200,
+            id="503_then_200_retries_once",
+        ),
+        pytest.param(
+            [FakeResponse(503), FakeResponse(503)],
+            1,
+            OMIT,
+            2,
+            503,
+            id="503_exhausted_returns_503",
+        ),
+        pytest.param(
+            [FakeResponse(503)],
+            2,
+            False,
+            1,
+            503,
+            id="retry_on_status_disabled_no_retry",
+        ),
+    ],
+)
+def test_api_client_get_status_retry_policy(
+    make_client, health_url, outcomes, retries, retry_on_status_arg, expected_count, expected_status
+):
     client, fake = make_client(outcomes)
-
-    res = client.get("/health", retries=1, backoff_s=0)
+    if retry_on_status_arg is OMIT:
+        res = client.get("/health", retries=retries, backoff_s=0)
+    else:
+        res = client.get(
+            "/health", retries=retries, backoff_s=0, retry_on_status=retry_on_status_arg
+        )
 
     _assert_calls(
         calls=fake.calls,
         expected_url=health_url,
         expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=2,
+        expected_count=expected_count,
     )
-    assert res.status_code == 200
-
-
-@pytest.mark.unit
-def test_api_client_get_returns_503_after_retries_exhausted(make_client, health_url):
-
-    outcomes = [FakeResponse(503), FakeResponse(503)]
-    client, fake = make_client(outcomes)
-
-    res = client.get("/health", retries=1, backoff_s=0)
-
-    _assert_calls(
-        calls=fake.calls,
-        expected_url=health_url,
-        expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=2,
-    )
-    assert res.status_code == 503
-
-
-@pytest.mark.unit
-def test_retry_on_status_false(make_client, health_url):
-
-    outcomes = [FakeResponse(503)]
-    client, fake = make_client(outcomes)
-
-    res = client.get("/health", retries=2, backoff_s=0, retry_on_status=False)
-
-    _assert_calls(
-        calls=fake.calls,
-        expected_url=health_url,
-        expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=1,
-    )
-    assert res.status_code == 503
+    assert res.status_code == expected_status
 
 
 @pytest.mark.unit
