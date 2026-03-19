@@ -39,43 +39,6 @@ def _assert_calls(
 
 
 @pytest.mark.unit
-def test_api_client_get_retries_on_timeout(make_client, health_url):
-
-    outcomes = [requests.exceptions.Timeout("simulated timeout"), FakeResponse(200)]
-    client, fake = make_client(outcomes)
-    res = client.get("/health", retries=1, backoff_s=0)
-
-    _assert_calls(
-        calls=fake.calls,
-        expected_url=health_url,
-        expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=2,
-    )
-    assert res.status_code == 200
-
-
-@pytest.mark.unit
-def test_api_client_get_raises_after_retries_exhausted(make_client, health_url):
-
-    outcomes = [
-        requests.exceptions.Timeout("simulated timeout"),
-        requests.exceptions.Timeout("simulated timeout"),
-    ]
-    client, fake = make_client(outcomes)
-
-    with pytest.raises(requests.exceptions.Timeout) as excinfo:
-        client.get("/health", retries=1, backoff_s=0)
-
-    _assert_calls(
-        calls=fake.calls,
-        expected_url=health_url,
-        expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=2,
-    )
-    assert "simulated timeout" in str(excinfo.value)
-
-
-@pytest.mark.unit
 @pytest.mark.parametrize(
     "outcomes, retries, retry_on_status_arg, expected_count, expected_status",
     [
@@ -149,40 +112,83 @@ def test_no_sleep_when_backoff_s_is_zero(monkeypatch, make_client, health_url):
 
 
 @pytest.mark.unit
-def test_retry_on_exceptions_false_does_not_retry_and_raises_timeout(make_client, health_url):
+@pytest.mark.parametrize(
+    "outcomes, retries, retry_on_exceptions_arg, expected_count, expected_status, expected_exc",
+    [
+        pytest.param(
+            [requests.exceptions.Timeout("simulated timeout"), FakeResponse(200)],
+            1,
+            OMIT,
+            2,
+            200,
+            None,
+            id="timeout_then_200_retries_once",
+        ),
+        pytest.param(
+            [
+                requests.exceptions.Timeout("simulated timeout"),
+                requests.exceptions.Timeout("simulated timeout"),
+            ],
+            1,
+            OMIT,
+            2,
+            None,
+            requests.exceptions.Timeout,
+            id="timeout_exhausted_raises",
+        ),
+        pytest.param(
+            [requests.exceptions.Timeout("simulated timeout")],
+            1,
+            False,
+            1,
+            None,
+            requests.exceptions.Timeout,
+            id="retry_on_exceptions_disabled_raises_no_retry",
+        ),
+        pytest.param(
+            [
+                requests.exceptions.Timeout("simulated timeout"),
+                requests.exceptions.Timeout("simulated timeout"),
+                requests.exceptions.Timeout("simulated timeout"),
+            ],
+            2,
+            True,
+            3,
+            None,
+            requests.exceptions.Timeout,
+            id="timeout_retries_exhausted_raises_after_budget",
+        ),
+    ],
+)
+def test_api_client_get_exceptions_retry_policy(
+    make_client,
+    health_url,
+    outcomes,
+    retries,
+    retry_on_exceptions_arg,
+    expected_count,
+    expected_status,
+    expected_exc,
+):
 
-    outcomes = [requests.exceptions.Timeout("simulated timeout")]
     client, fake = make_client(outcomes)
+    call_kwargs = {"retries": retries, "backoff_s": 0}
+    if retry_on_exceptions_arg is not OMIT:
+        call_kwargs["retry_on_exceptions"] = retry_on_exceptions_arg
 
-    with pytest.raises(requests.exceptions.Timeout) as excinfo:
-        client.get("/health", retries=1, backoff_s=0, retry_on_exceptions=False)
+    if expected_exc is not None:
+        with pytest.raises(expected_exc) as excinfo:
+            client.get("/health", **call_kwargs)
+    else:
+        res = client.get("/health", **call_kwargs)
 
     _assert_calls(
         calls=fake.calls,
         expected_url=health_url,
         expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=1,
+        expected_count=expected_count,
     )
-    assert "simulated timeout" in str(excinfo.value)
-
-
-@pytest.mark.unit
-def test_retry_on_exceptions_true_retries_and_raises_timeout_after_budget(make_client, health_url):
-
-    outcomes = [
-        requests.exceptions.Timeout("simulated timeout"),
-        requests.exceptions.Timeout("simulated timeout"),
-        requests.exceptions.Timeout("simulated timeout"),
-    ]
-    client, fake = make_client(outcomes)
-
-    with pytest.raises(requests.exceptions.Timeout) as excinfo:
-        client.get("/health", retries=2, backoff_s=0, retry_on_exceptions=True)
-
-    _assert_calls(
-        calls=fake.calls,
-        expected_url=health_url,
-        expected_timeout=HTTP_TIMEOUT_S,
-        expected_count=3,
-    )
-    assert "simulated timeout" in str(excinfo.value)
+    if expected_exc is not None:
+        assert "simulated timeout" in str(excinfo.value)
+    else:
+        assert res.status_code == expected_status
