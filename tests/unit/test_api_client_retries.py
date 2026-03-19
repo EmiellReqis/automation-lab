@@ -14,12 +14,28 @@ def _assert_calls(
     expected_url: str,
     expected_timeout: float,
     expected_count: int,
+    expected_kwargs: dict[str, Any] | None = None,
 ) -> None:
-    assert len(calls) == expected_count
-    for url, kwargs in calls:
-        assert url == expected_url
+    assert len(calls) == expected_count, (
+        f"call count mismatch: expected {expected_count}, got {len(calls)}; calls={calls}"
+    )
+    for idx, (url, kwargs) in enumerate(calls):
+        assert url == expected_url, f"call[{idx}] url mismatch: expected {expected_url}, got {url}"
         assert "timeout" in kwargs
-        assert kwargs["timeout"] == expected_timeout
+        actual_timeout = kwargs["timeout"]
+        assert actual_timeout == expected_timeout, (
+            f"call[{idx}] timeout mismatch: expected {expected_timeout}, got {actual_timeout}"
+        )
+        if expected_kwargs is not None:
+            for key, value in expected_kwargs.items():
+                assert key in kwargs, (
+                    f"call[{idx}] missing expected kwarg '{key}'; "
+                    f"available keys: {sorted(kwargs.keys())}"
+                )
+                actual_result = kwargs[key]
+                assert actual_result == value, (
+                    f"call[{idx}] {key} mismatch: expected {value}, got {actual_result}"
+                )
 
 
 @pytest.mark.unit
