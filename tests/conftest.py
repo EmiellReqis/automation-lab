@@ -15,6 +15,7 @@ from tests.config import (
     PORT,
     PROCESS_STOP_TIMEOUT_S,
     SERVER_START_TIMEOUT_S,
+    UNIT_BASE_URL,
 )
 from tests.helpers.fake_session import FakeSession
 
@@ -109,12 +110,12 @@ def sut_server():
 
 
 @pytest.fixture
-def make_client():
+def make_client(unit_base_url: str):
     def _make_client(outcomes: list[Any], **client_overrides):
         """
         Build an APIClient instance backed by a FakeSession with predefined outcomes.
 
-        This is a factory function returned by the `client_factory` pytest fixture.
+        This is a factory function returned by the `make_client` pytest fixture.
         It helps tests focus on scenarios by avoiding repeated boilerplate for
         FakeSession and APIClient construction.
 
@@ -134,13 +135,13 @@ def make_client():
         Raises:
             ValueError: If `client_overrides` contains keys outside the allowed set.
         """
-        defaults = {"base_url": "http://example", "timeout": HTTP_TIMEOUT_S}
+        defaults = {"base_url": unit_base_url, "timeout": HTTP_TIMEOUT_S}
         params = {**defaults, **client_overrides}
         allowed = set(defaults)
         unknown = set(client_overrides) - allowed
         if unknown:
             raise ValueError(
-                f"client_factory: unknown client override keys {sorted(unknown)}; "
+                f"make_client: unknown client override keys {sorted(unknown)}; "
                 f"allowed keys are {sorted(allowed)}."
             )
         fake = FakeSession(outcomes)
@@ -151,10 +152,10 @@ def make_client():
 
 
 @pytest.fixture
-def base_url() -> str:
-    return "http://example"
+def unit_base_url() -> str:
+    return UNIT_BASE_URL
 
 
 @pytest.fixture
-def health_url(base_url: str) -> str:
-    return f"{base_url}/health"
+def health_url(unit_base_url: str) -> str:
+    return f"{unit_base_url}/health"

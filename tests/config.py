@@ -64,6 +64,7 @@ def _parse_bool(value: Any, default: bool = False) -> bool:
 
 PORT = _parse_port(os.getenv("PORT", "8000"))
 BASE_URL = os.getenv("BASE_URL", f"http://127.0.0.1:{PORT}")
+UNIT_BASE_URL = os.getenv("UNIT_BASE_URL", "http://example")
 SERVER_START_TIMEOUT_S = _parse_float(os.getenv("SERVER_START_TIMEOUT_S"), 5.0)
 PROCESS_STOP_TIMEOUT_S = _parse_float(os.getenv("PROCESS_STOP_TIMEOUT_S"), 5.0)
 HTTP_TIMEOUT_S = _parse_float(os.getenv("HTTP_TIMEOUT_S"), 2.0)
