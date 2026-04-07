@@ -13,39 +13,59 @@ class FakeResponse:
     # json_data: Any | None = None
 
 
+@dataclass(frozen=True)
+class RequestCall:
+    """
+    Represents a single HTTP call recorded by FakeSession for assertions and debugging.
+    """
+
+    method: str
+    url: str
+    kwargs: dict[str, Any]
+
+
 class FakeSession:
     """
     A minimal stand-in for `requests.Session` used in unit tests.
 
     It supports scripted outcomes for consecutive `.get()` calls:
-      - a response-like object (e.g. `FakeResponse(status_code=200)`) will be returned
+      - a response-like object will be returned
       - an `Exception` instance will be raised
 
-    The session also records all calls in `self.calls` as (url, kwargs),
-    so tests can assert request URL, timeout, headers, etc.
+    The session records every performed request in `self.calls` as `RequestCall`
+    objects, so tests can assert HTTP method, URL, and request kwargs.
+
+    If a request is made without a configured outcome, the session fails fast
+    with an `AssertionError` that includes request context.
     """
 
     def __init__(self, outcomes: Sequence[Any] | None = None):
         self.outcomes: deque[Any] = deque() if outcomes is None else deque(outcomes)
-        self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.calls: list[RequestCall] = []
 
     def get(self, url: str, **kwargs: Any) -> Any:
         """
-         Simulate `requests.Session.get(url, **kwargs)`.
+        Simulate `requests.Session.get(url, **kwargs)`.
+
+        Records the request in `self.calls`, then consumes the next configured
+        outcome from `self.outcomes`.
 
         Behavior:
-          1) record the call as (url, kwargs) in `self.calls`
-          2) take the next item from `self.outcomes`
-          3) if the item is an Exception -> raise it
-             otherwise -> return it
+          1) store the performed request as `RequestCall(method="GET", url=url, kwargs=kwargs)`
+          2) return the next configured outcome
+          3) raise the outcome if it is an `Exception`
 
         Raises:
-          AssertionError: if no outcomes are left (helps detect unexpected extra retries).
+          AssertionError: if no outcome is configured for the performed request.
         """
-        self.calls.append((url, kwargs))
+        request_call = RequestCall(method="GET", url=url, kwargs=kwargs)
+        self.calls.append(request_call)
 
         if not self.outcomes:
-            raise AssertionError("FakeSession: no more outcomes configured")
+            raise AssertionError(
+                f"FakeSession: unexpected request "
+                f"{request_call.method} {request_call.url} - no outcome configured"
+            )
 
         outcome = self.outcomes.popleft()
 

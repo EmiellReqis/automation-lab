@@ -4,35 +4,44 @@ import pytest
 import requests
 
 from tests.config import HTTP_TIMEOUT_S
-from tests.helpers.fake_session import FakeResponse
+from tests.helpers.fake_session import FakeResponse, RequestCall
 
 OMIT = object()
 
 
 def _assert_calls(
-    calls: list[tuple[str, dict[str, Any]]],
+    calls: list[RequestCall],
     expected_url: str,
     expected_timeout: float,
     expected_count: int,
     expected_kwargs: dict[str, Any] | None = None,
+    expected_method: str = "GET",
 ) -> None:
     assert len(calls) == expected_count, (
         f"call count mismatch: expected {expected_count}, got {len(calls)}; calls={calls}"
     )
-    for idx, (url, kwargs) in enumerate(calls):
-        assert url == expected_url, f"call[{idx}] url mismatch: expected {expected_url}, got {url}"
-        assert "timeout" in kwargs
-        actual_timeout = kwargs["timeout"]
+    for idx, call in enumerate(calls):
+        assert expected_method == call.method, (
+            f"call[{idx}] method mismatch: expected {expected_method}, got {call.method}"
+        )
+        assert call.url == expected_url, (
+            f"call[{idx}] url mismatch: expected {expected_url}, got {call.url}"
+        )
+        assert "timeout" in call.kwargs, (
+            f"call[{idx}] missing expected kwarg 'timeout'; "
+            f"available keys: {sorted(call.kwargs.keys())}"
+        )
+        actual_timeout = call.kwargs["timeout"]
         assert actual_timeout == expected_timeout, (
             f"call[{idx}] timeout mismatch: expected {expected_timeout}, got {actual_timeout}"
         )
         if expected_kwargs is not None:
             for key, value in expected_kwargs.items():
-                assert key in kwargs, (
+                assert key in call.kwargs, (
                     f"call[{idx}] missing expected kwarg '{key}'; "
-                    f"available keys: {sorted(kwargs.keys())}"
+                    f"available keys: {sorted(call.kwargs.keys())}"
                 )
-                actual_result = kwargs[key]
+                actual_result = call.kwargs[key]
                 assert actual_result == value, (
                     f"call[{idx}] {key} mismatch: expected {value}, got {actual_result}"
                 )
