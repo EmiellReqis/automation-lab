@@ -24,6 +24,22 @@ class RequestCall:
     kwargs: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class ExpectedRequest:
+    """
+    Represents the expected request for a configured FakeSession outcome.
+    """
+
+    method: str
+    url: str
+
+
+@dataclass(frozen=True)
+class ConfiguredOutcome:
+    expected_request: ExpectedRequest
+    outcome: Any
+
+
 class FakeSession:
     """
     A minimal stand-in for `requests.Session` used in unit tests.
@@ -69,6 +85,18 @@ class FakeSession:
 
         outcome = self.outcomes.popleft()
 
+        if isinstance(outcome, ConfiguredOutcome):
+            if (
+                request_call.method != outcome.expected_request.method
+                or request_call.url != outcome.expected_request.url
+            ):
+                raise AssertionError(
+                    f"FakeSession: request mismatch - "
+                    f"expected {outcome.expected_request.method} "
+                    f"{outcome.expected_request.url}, "
+                    f"got {request_call.method} {request_call.url}"
+                )
+            outcome = outcome.outcome
         if isinstance(outcome, Exception):
             raise outcome
         return outcome
